@@ -66,9 +66,18 @@ c3.metric("Max days",    str(int(df["days_in_system"].max())))
 
 # ── filters & sort ────────────────────────────────────────────────────────────
 
-col_search, col_sort = st.columns([3, 1])
+col_search, col_days, col_sort = st.columns([3, 2, 1])
 with col_search:
     query = st.text_input("Search LP No. or status", placeholder="Type to filter…")
+with col_days:
+    max_days = int(df["days_in_system"].max()) if len(df) else 0
+    min_filter = st.slider(
+        "Minimum days in system",
+        min_value=0,
+        max_value=max(max_days, 1),
+        value=0,
+        help="Show only packages with this many days or more",
+    )
 with col_sort:
     sort_order = st.selectbox("Days in system", ["↓ Descending", "↑ Ascending"])
 
@@ -79,6 +88,9 @@ if query:
         view["status"].astype(str).str.lower().str.contains(query.lower(), na=False)
     )
     view = view[mask]
+
+if min_filter > 0:
+    view = view[view["days_in_system"] >= min_filter]
 
 view = view.sort_values("days_in_system", ascending=(sort_order == "↑ Ascending"))
 view["created"] = view["created"].dt.strftime("%Y-%m-%d %H:%M")
@@ -93,7 +105,8 @@ display = view[["lp", "status", "created", "days_in_system"]].rename(columns={
 
 # ── table ─────────────────────────────────────────────────────────────────────
 
-st.caption(f"As of {date.today()}  •  Showing {len(display):,} packages  •  Select a row for full details")
+filter_note = f"  •  ≥ {min_filter} days" if min_filter > 0 else ""
+st.caption(f"As of {date.today()}  •  Showing {len(display):,} packages{filter_note}  •  Select a row for full details")
 
 selection = st.dataframe(
     display,
